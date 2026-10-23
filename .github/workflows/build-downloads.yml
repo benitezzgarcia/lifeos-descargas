@@ -89,4 +89,4 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          gh release upload v1.4.0 outputs/LifeOS/LifeOS-android-debug.apk outputs/LifeOS-Windows-Prueba.zip outputs/LifeOS/LifeOS-android-debug.sha256 outputs/LifeOS-Windows-Prueba.sha256 release-build.json --clobber --repo "$GITHUB_REPOSITORY"
+          gh release upload v1.5.0 outputs/LifeOS/LifeOS-android-debug.apk outputs/LifeOS-Windows-Prueba.zip outputs/LifeOS/LifeOS-android-debug.sha256 outputs/LifeOS-Windows-Prueba.sha256 release-build.json --clobber --repo "$GITHUB_REPOSITORY"
