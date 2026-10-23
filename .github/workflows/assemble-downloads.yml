@@ -1,0 +1,40 @@
+name: Preparar descargas originales
+on:
+  workflow_dispatch:
+permissions:
+  contents: write
+jobs:
+  assemble:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+      - name: Descargar partes de la versión
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          mkdir -p parts complete
+          gh release download v1.3.0 --repo "$GITHUB_REPOSITORY" --pattern '*.part*' --dir parts
+      - name: Reconstruir y comprobar los archivos originales
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          import json,hashlib,shutil
+          for item in json.loads(Path('release-manifest.json').read_text()):
+              target=Path('complete')/item['file']
+              with target.open('wb') as destination:
+                  for number in range(item['parts']):
+                      source=Path('parts')/(item['file']+'.part'+str(number).zfill(4))
+                      assert source.is_file(),str(source)
+                      with source.open('rb') as stream:shutil.copyfileobj(stream,destination)
+              assert target.stat().st_size==item['size'],target.name
+              h=hashlib.sha256()
+              with target.open('rb') as stream:
+                  for chunk in iter(lambda:stream.read(8*1024*1024),b''):h.update(chunk)
+              assert h.hexdigest()==item['sha256'],target.name
+              print(target.name+': tamaño y SHA-256 correctos')
+          PY
+      - name: Publicar APK y ZIP completos
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh release upload v1.3.0 complete/LifeOS-android-debug.apk complete/LifeOS-Windows-Prueba.zip --repo "$GITHUB_REPOSITORY"
