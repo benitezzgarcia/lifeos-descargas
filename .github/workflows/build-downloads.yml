@@ -1,0 +1,83 @@
+name: Compilar LifeOS y publicar descargas
+on:
+  workflow_dispatch:
+permissions:
+  contents: write
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+      - name: Abrir fuentes cifradas
+        env:
+          BUILD_KEY: ${{ secrets.LIFEOS_BUILD_KEY }}
+        run: |
+          python3 -m pip install cryptography --quiet
+          python3 - <<'PY'
+          import os,base64,io,zipfile
+          from pathlib import Path
+          from cryptography.hazmat.primitives.ciphers.aead import AESGCM
+          raw=Path('build-source.enc').read_bytes()
+          data=AESGCM(base64.b64decode(os.environ['BUILD_KEY'])).decrypt(raw[:12],raw[12:],b'LifeOS build')
+          with zipfile.ZipFile(io.BytesIO(data)) as archive:archive.extractall('.')
+          PY
+          mkdir -p "$HOME/.android"
+          cp ci/debug.keystore "$HOME/.android/debug.keystore"
+      - name: Preparar dependencias y recursos incluidos
+        working-directory: outputs/LifeOS/app
+        run: |
+          npm ci
+          npm ci --prefix desktop
+          mkdir -p assets/ocr/lang
+          curl -fL --retry 3 https://tessdata.projectnaptha.com/4.0.0/eng.traineddata.gz -o assets/ocr/lang/eng.traineddata.gz
+          curl -fL --retry 3 https://tessdata.projectnaptha.com/4.0.0/spa.traineddata.gz -o assets/ocr/lang/spa.traineddata.gz
+          node prepare-ai.cjs
+          npm test
+      - name: Generar APK con su firma de pruebas
+        working-directory: outputs/LifeOS/app
+        run: |
+          npm run build:mobile
+          npx cap sync android
+          chmod +x android/gradlew
+          cd android
+          ./gradlew assembleDebug
+          cp app/build/outputs/apk/debug/app-debug.apk ../../LifeOS-android-debug.apk
+      - name: Generar carpeta portátil de Windows
+        working-directory: outputs/LifeOS/app
+        run: npm run build:windows
+      - name: Empaquetar y verificar descargas
+        run: |
+          python3 work/package-windows-friend.py
+          python3 - <<'PY'
+          from pathlib import Path
+          import hashlib,json,zipfile
+          files=[Path('outputs/LifeOS/LifeOS-android-debug.apk'),Path('outputs/LifeOS-Windows-Prueba.zip')]
+          manifest=[]
+          for file in files:
+              h=hashlib.sha256()
+              with file.open('rb') as stream:
+                  for chunk in iter(lambda:stream.read(8*1024*1024),b''):h.update(chunk)
+              file.with_suffix('.sha256').write_text(h.hexdigest()+'  '+file.name+'\n')
+              with zipfile.ZipFile(file) as archive:
+                  assert archive.testzip() is None
+                  if file.suffix=='.apk':
+                      assert b'krrqap1rh34anb1416feqnov91ci5kgm' in archive.read('assets/public/google-config.js')
+                      assert any('model_quantized.onnx' in n for n in archive.namelist())
+              manifest.append({'name':file.name,'size':file.stat().st_size,'sha256':h.hexdigest()})
+          Path('release-build.json').write_text(json.dumps(manifest,indent=2))
+          PY
+          "$ANDROID_HOME/build-tools/36.0.0/apksigner" verify --print-certs outputs/LifeOS/LifeOS-android-debug.apk | tee signing-report.txt
+          grep -qi '1efeb2abc9178bbd1478a9f0de1283c5b4c92782' signing-report.txt
+      - name: Publicar archivos completos
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release upload v1.3.0 outputs/LifeOS/LifeOS-android-debug.apk outputs/LifeOS-Windows-Prueba.zip outputs/LifeOS/LifeOS-android-debug.sha256 outputs/LifeOS-Windows-Prueba.sha256 release-build.json --clobber --repo "$GITHUB_REPOSITORY"
