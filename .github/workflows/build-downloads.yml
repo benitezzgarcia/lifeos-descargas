@@ -31,6 +31,15 @@ jobs:
           PY
           mkdir -p "$HOME/.android"
           cp ci/debug.keystore "$HOME/.android/debug.keystore"
+          keytool -list -v -keystore ci/debug.keystore -storepass android | grep -qi '1E:FE:B2:AB:C9:17:8B:BD:14:78:A9:F0:DE:12:83:C5:B4:C9:27:82'
+          python3 - <<'PY'
+          from pathlib import Path
+          target=Path('outputs/LifeOS/app/android/app/build.gradle')
+          source=target.read_text()
+          key=Path('ci/debug.keystore').resolve().as_posix()
+          signing="\n    signingConfigs {\n        debug {\n            storeFile file('"+key+"')\n            storePassword 'android'\n            keyAlias 'androiddebugkey'\n            keyPassword 'android'\n        }\n    }\n"
+          target.write_text(source.replace('android {','android {'+signing,1))
+          PY
       - name: Preparar dependencias y recursos incluidos
         working-directory: outputs/LifeOS/app
         run: |
