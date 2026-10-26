@@ -78,6 +78,8 @@ jobs:
               with zipfile.ZipFile(file) as archive:
                   assert archive.testzip() is None
                   if file.suffix=='.apk':
+                      assert b'LifeStudyTools' in archive.read('assets/public/study-tools-ui.js')
+                      assert 'assets/public/study-tools-core.js' in archive.namelist()
                       assert b'krrqap1rh34anb1416feqnov91ci5kgm' in archive.read('assets/public/google-config.js')
                       assert any('model_quantized.onnx' in n for n in archive.namelist())
               manifest.append({'name':file.name,'size':file.stat().st_size,'sha256':h.hexdigest()})
@@ -89,4 +91,4 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          gh release upload v1.7.0 outputs/LifeOS/LifeOS-android-debug.apk outputs/LifeOS-Windows-Prueba.zip outputs/LifeOS/LifeOS-android-debug.sha256 outputs/LifeOS-Windows-Prueba.sha256 release-build.json --clobber --repo "$GITHUB_REPOSITORY"
+          gh release upload v1.8.0 outputs/LifeOS/LifeOS-android-debug.apk outputs/LifeOS-Windows-Prueba.zip outputs/LifeOS/LifeOS-android-debug.sha256 outputs/LifeOS-Windows-Prueba.sha256 release-build.json --clobber --repo "$GITHUB_REPOSITORY"
