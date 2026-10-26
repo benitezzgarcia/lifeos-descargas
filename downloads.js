@@ -10,7 +10,7 @@
   });
   async function check() {
     try {
-      const response = await fetch('https://api.github.com/repos/benitezzgarcia/lifeos-descargas/releases/tags/v1.6.1', {credentials: 'omit', signal: AbortSignal.timeout(15000)});
+      const response = await fetch('https://api.github.com/repos/benitezzgarcia/lifeos-descargas/releases/tags/v1.7.0', {credentials: 'omit', signal: AbortSignal.timeout(15000)});
       if (!response.ok) throw new Error('No disponible');
       const release = await response.json();
       let ready = 0;
