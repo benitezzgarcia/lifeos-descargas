@@ -57,7 +57,7 @@ jobs:
           npx cap sync android
           chmod +x android/gradlew
           cd android
-          ./gradlew assembleDebug
+          ./gradlew assembleDebug || ./gradlew assembleDebug || ./gradlew assembleDebug
           cp app/build/outputs/apk/debug/app-debug.apk ../../LifeOS-android-debug.apk
       - name: Generar carpeta portátil de Windows
         working-directory: outputs/LifeOS/app
@@ -91,4 +91,4 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          gh release upload v1.8.0 outputs/LifeOS/LifeOS-android-debug.apk outputs/LifeOS-Windows-Prueba.zip outputs/LifeOS/LifeOS-android-debug.sha256 outputs/LifeOS-Windows-Prueba.sha256 release-build.json --clobber --repo "$GITHUB_REPOSITORY"
+          gh release upload v1.8.1 outputs/LifeOS/LifeOS-android-debug.apk outputs/LifeOS-Windows-Prueba.zip outputs/LifeOS/LifeOS-android-debug.sha256 outputs/LifeOS-Windows-Prueba.sha256 release-build.json --clobber --repo "$GITHUB_REPOSITORY"
